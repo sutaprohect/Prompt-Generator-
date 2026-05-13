@@ -1,40 +1,238 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Image to Prompt - Fixed Version</title>
-    <style>
-        body { font-family: sans-serif; background: #f0f2f5; display: flex; justify-content: center; padding: 20px; }
-        .box { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); width: 100%; max-width: 450px; text-align: center; }
-        .preview-img { width: 100%; border-radius: 8px; margin: 15px 0; display: none; border: 1px solid #ddd; }
-        .btn { background: #007bff; color: white; border: none; padding: 12px 20px; border-radius: 6px; cursor: pointer; width: 100%; font-weight: bold; }
-        .btn:disabled { background: #ccc; }
-        #result { margin-top: 20px; padding: 15px; background: #f8f9fa; border-radius: 6px; text-align: left; word-wrap: break-word; font-size: 14px; border: 1px solid #eee; min-height: 40px; }
-        .loader { color: #555; font-style: italic; display: none; }
-    </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Image To Prompt AI</title>
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Font -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+  <style>
+    body{
+      font-family: 'Poppins', sans-serif;
+      background: #0f172a;
+      overflow-x: hidden;
+    }
+
+    .glass{
+      background: rgba(255,255,255,0.08);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(255,255,255,0.1);
+    }
+
+    .gradient{
+      background: linear-gradient(135deg,#6366f1,#8b5cf6,#ec4899);
+    }
+
+    .drop-zone.dragover{
+      border-color: #8b5cf6;
+      background: rgba(139,92,246,0.15);
+    }
+  </style>
 </head>
-<body>
+<body class="text-white min-h-screen">
 
-<div class="box">
-    <h2>AI Image to Prompt</h2>
-    <input type="file" id="fileInput" accept="image/*">
-    <img id="imgPreview" class="preview-img">
-    
-    <button id="runBtn" class="btn">Proses Gambar Sekarang</button>
-    
-    <div id="loader" class="loader">Sedang memproses ke AI...</div>
-    <div id="result">Hasil prompt akan muncul di sini...</div>
-</div>
+  <!-- Background Blur -->
+  <div class="absolute top-0 left-0 w-72 h-72 bg-purple-500 rounded-full blur-3xl opacity-20"></div>
+  <div class="absolute bottom-0 right-0 w-72 h-72 bg-pink-500 rounded-full blur-3xl opacity-20"></div>
 
-<script>
-    // API KEY yang Anda berikan
-    const API_KEY = "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";
-    
-    const fileInput = document.getElementById('fileInput');
-    const imgPreview = document.getElementById('imgPreview');
-    const runBtn = document.getElementById('runBtn');
-    const resultDiv = document.getElementById('result');
+  <div class="relative z-10 max-w-6xl mx-auto px-6 py-10">
+
+    <!-- Header -->
+    <div class="text-center mb-10">
+      <h1 class="text-5xl font-bold gradient bg-clip-text text-transparent">
+        Image To Prompt AI
+      </h1>
+      <p class="text-slate-300 mt-3">
+        Upload gambar dan ubah menjadi prompt AI otomatis
+      </p>
+    </div>
+
+    <!-- Main -->
+    <div class="grid lg:grid-cols-2 gap-8">
+
+      <!-- Upload Card -->
+      <div class="glass rounded-3xl p-6 shadow-2xl">
+
+        <h2 class="text-2xl font-semibold mb-5">
+          Upload Gambar
+        </h2>
+
+        <div id="dropZone"
+          class="drop-zone border-2 border-dashed border-slate-500 rounded-2xl p-10 text-center transition duration-300 cursor-pointer">
+
+          <input type="file" id="imageInput" accept="image/*" class="hidden">
+
+          <div class="flex flex-col items-center">
+            <div class="w-20 h-20 rounded-full gradient flex items-center justify-center mb-4 text-3xl">
+              🖼️
+            </div>
+
+            <p class="text-lg font-medium">
+              Drag & Drop Gambar
+            </p>
+
+            <p class="text-slate-400 text-sm mt-1">
+              atau klik untuk upload
+            </p>
+          </div>
+        </div>
+
+        <!-- Preview -->
+        <div class="mt-6 hidden" id="previewContainer">
+          <img id="previewImage"
+            class="rounded-2xl w-full max-h-[400px] object-cover shadow-xl">
+        </div>
+
+        <button id="generateBtn"
+          class="w-full mt-6 py-4 rounded-2xl gradient font-semibold text-lg hover:scale-[1.02] transition duration-300 shadow-lg">
+          Generate Prompt
+        </button>
+
+      </div>
+
+      <!-- Prompt Result -->
+      <div class="glass rounded-3xl p-6 shadow-2xl">
+
+        <div class="flex items-center justify-between mb-5">
+          <h2 class="text-2xl font-semibold">
+            Hasil Prompt
+          </h2>
+
+          <button id="copyBtn"
+            class="px-4 py-2 bg-white/10 rounded-xl hover:bg-white/20 transition">
+            Copy
+          </button>
+        </div>
+
+        <textarea id="promptOutput"
+          class="w-full h-[500px] bg-slate-900/60 border border-slate-700 rounded-2xl p-5 outline-none resize-none text-slate-200"
+          placeholder="Prompt AI akan muncul di sini..."></textarea>
+
+      </div>
+
+    </div>
+
+  </div>
+
+  <script>
+    const dropZone = document.getElementById("dropZone");
+    const imageInput = document.getElementById("imageInput");
+    const previewImage = document.getElementById("previewImage");
+    const previewContainer = document.getElementById("previewContainer");
+    const generateBtn = document.getElementById("generateBtn");
+    const promptOutput = document.getElementById("promptOutput");
+    const copyBtn = document.getElementById("copyBtn");
+
+    let uploadedImage = null;
+
+    // Open file picker
+    dropZone.addEventListener("click", () => {
+      imageInput.click();
+    });
+
+    // File input
+    imageInput.addEventListener("change", handleImage);
+
+    // Drag events
+    dropZone.addEventListener("dragover", (e) => {
+      e.preventDefault();
+      dropZone.classList.add("dragover");
+    });
+
+    dropZone.addEventListener("dragleave", () => {
+      dropZone.classList.remove("dragover");
+    });
+
+    dropZone.addEventListener("drop", (e) => {
+      e.preventDefault();
+      dropZone.classList.remove("dragover");
+
+      const file = e.dataTransfer.files[0];
+      if(file){
+        loadImage(file);
+      }
+    });
+
+    function handleImage(e){
+      const file = e.target.files[0];
+      if(file){
+        loadImage(file);
+      }
+    }
+
+    function loadImage(file){
+      uploadedImage = file;
+
+      const reader = new FileReader();
+
+      reader.onload = function(event){
+        previewImage.src = event.target.result;
+        previewContainer.classList.remove("hidden");
+      };
+
+      reader.readAsDataURL(file);
+    }
+
+    // Generate Prompt
+    generateBtn.addEventListener("click", async () => {
+
+      if(!uploadedImage){
+        alert("Upload gambar terlebih dahulu!");
+        return;
+      }
+
+      generateBtn.innerHTML = "Generating...";
+      generateBtn.disabled = true;
+
+      // Simulasi AI
+      setTimeout(() => {
+
+        const fakePrompt = `
+Ultra detailed cinematic portrait, highly realistic, soft lighting,
+sharp focus, vibrant colors, professional photography,
+8k resolution, depth of field, dramatic shadows,
+modern aesthetic, trending on ArtStation.
+
+Style: photorealistic
+Camera: Sony A7 IV
+Lighting: cinematic soft light
+Mood: elegant and futuristic
+Color palette: purple, blue, neon highlights
+        `.trim();
+
+        promptOutput.value = fakePrompt;
+
+        generateBtn.innerHTML = "Generate Prompt";
+        generateBtn.disabled = false;
+
+      }, 1800);
+    });
+
+    // Copy
+    copyBtn.addEventListener("click", () => {
+
+      if(!promptOutput.value){
+        return;
+      }
+
+      navigator.clipboard.writeText(promptOutput.value);
+
+      copyBtn.innerHTML = "Copied ✅";
+
+      setTimeout(() => {
+        copyBtn.innerHTML = "Copy";
+      }, 2000);
+    });
+  </script>
+
+</body>
+</html>    const resultDiv = document.getElementById('result');
     const loader = document.getElementById('loader');
 
     // Tampilkan gambar setelah dipilih
